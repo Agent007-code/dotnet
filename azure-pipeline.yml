@@ -1,0 +1,47 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- dotnet
+
+pool:
+  vmImage: windows-latest
+
+steps:
+- task: AzureKeyVault@2
+  inputs:
+    azureSubscription: 'myapp'
+    KeyVaultName: 'myykeyvault1'
+    SecretsFilter: '*'
+    RunAsPreJob: false
+- task: NuGetCommand@2
+  inputs:
+    command: 'restore'
+    restoreSolution: '**\*.sln'
+    feedsToUse: 'select'
+
+- task: replacetokens@5
+  inputs:
+    targetFiles: '**/*.json'
+    encoding: 'auto'
+    tokenPattern: 'azpipelines'
+    writeBOM: true
+    actionOnMissing: 'warn'
+    keepToken: false
+    actionOnNoFiles: 'continue'
+    enableTransforms: false
+    enableRecursion: false
+    useLegacyPattern: false
+    enableTelemetry: true
+- task: VSBuild@1
+  inputs:
+    solution: '**\*.sln'
+    msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:DesktopBuildPackageLocation="$(build.artifactStagingDirectory)\WebApp.zip" /p:DeployIisAppPath="Default Web Site"'
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: '$(build.artifactStagingDirectory)'
+    ArtifactName: 'drop'
+    publishLocation: 'Container'
